@@ -1,32 +1,63 @@
+import { Card, Progress, Space, Typography } from 'antd';
 import type { Supplier, Warehouse } from '../types';
 import { formatNumber } from '../utils/helpers';
 
-const StockBar = ({ id, label, used, total }: { id: string; label: string; used: number; total: number }) => (
-  <div className="flex items-center gap-2 text-xs">
-    <span className="w-16 font-mono text-gray-500">{id}</span>
-    <span className="w-32 truncate text-gray-600">{label}</span>
-    <div className="flex-1 h-3 bg-gray-100 border border-gray-200">
-      <div className="h-full bg-gray-400" style={{ width: `${total > 0 ? (used / total) * 100 : 0}%` }} />
+const { Text } = Typography;
+
+const StockBar = ({ id, label, used, total }: { id: string; label: string; used: number; total: number }) => {
+  const percent = total > 0 ? Math.round((used / total) * 100) : 0;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <Text code style={{ width: 60, fontSize: 12 }}>{id}</Text>
+      <Text type="secondary" ellipsis style={{ width: 130, fontSize: 12 }}>{label}</Text>
+      <Progress
+        percent={percent}
+        size="small"
+        style={{ flex: 1, margin: 0 }}
+        strokeColor="#8c8c8c"
+        format={() => ''}
+      />
+      <Text type="secondary" style={{ width: 120, textAlign: 'right', fontSize: 12, flexShrink: 0 }}>
+        {formatNumber(used)} / {formatNumber(total)}
+      </Text>
     </div>
-    <span className="w-28 text-right text-gray-500">{formatNumber(used)} / {formatNumber(total)}</span>
-  </div>
-);
+  );
+};
 
 const StockOverview = ({ suppliers, warehouses }: { suppliers: Supplier[]; warehouses: Warehouse[] }) => (
-  <div className="border border-gray-200 bg-white p-3 space-y-3">
-    <div>
-      <h3 className="text-xs font-semibold text-gray-700 mb-2">Supplier Stock</h3>
-      <div className="space-y-1">
-        {suppliers.map((supplier) => <StockBar key={supplier.id} id={supplier.id} label={supplier.name} used={supplier.totalStock - supplier.remainingStock} total={supplier.totalStock} />)}
+  <Card size="small" styles={{ body: { padding: 12 } }}>
+    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <div>
+        <Text strong style={{ fontSize: 12 }}>Supplier Stock</Text>
+        <Space direction="vertical" size={2} style={{ width: '100%', marginTop: 4 }}>
+          {suppliers.map((supplier) => (
+            <StockBar
+              key={supplier.id}
+              id={supplier.id}
+              label={supplier.name}
+              used={supplier.totalStock - supplier.remainingStock}
+              total={supplier.totalStock}
+            />
+          ))}
+        </Space>
       </div>
-    </div>
-    <div>
-      <h3 className="text-xs font-semibold text-gray-700 mb-2">Warehouse Stock</h3>
-      <div className="space-y-1">
-        {warehouses.map((warehouse) => <StockBar key={warehouse.id} id={warehouse.id} label={warehouse.name} used={warehouse.totalStock - warehouse.remainingStock} total={warehouse.totalStock} />)}
+      <div>
+        <Text strong style={{ fontSize: 12 }}>Warehouse Stock</Text>
+        <Space direction="vertical" size={2} style={{ width: '100%', marginTop: 4 }}>
+          {warehouses.map((warehouse) => (
+            <StockBar
+              key={warehouse.id}
+              id={warehouse.id}
+              label={warehouse.name}
+              used={warehouse.totalStock - warehouse.remainingStock}
+              total={warehouse.totalStock}
+            />
+          ))}
+        </Space>
       </div>
-    </div>
-  </div>
+    </Space>
+  </Card>
 );
 
 export default StockOverview;

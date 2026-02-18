@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { Layout, Button, Space } from 'antd';
+import { ReloadOutlined, ThunderboltOutlined, BarChartOutlined } from '@ant-design/icons';
 import type { Filters, Order } from './types';
 import { useAllocation } from './hooks/useAllocation';
 import { getAllocationStatus } from './utils/helpers';
@@ -7,6 +9,8 @@ import StockOverview from './components/StockOverview';
 import SearchFilter from './components/SearchFilter';
 import AllocationTable from './components/AllocationTable';
 import ManualAllocationModal from './components/ManualAllocationModal';
+
+const { Header, Content } = Layout;
 
 const matchesSearchQuery = (order: Order, query: string) => {
   if (!query) return true;
@@ -63,46 +67,63 @@ const App = () => {
     : null;
 
   return (
-    <div className="min-h-screen">
-      <div className="border-b border-gray-200 px-4 py-2 flex items-center justify-between">
-        <h1 className="text-sm font-semibold">Salmon Allocation</h1>
-        <div className="flex items-center gap-2">
-          <button
+    <Layout style={{ minHeight: '100vh' }}>
+      <Header
+        style={{
+          background: '#fff',
+          padding: '0 16px',
+          height: 48,
+          lineHeight: '48px',
+          borderBottom: '1px solid #f0f0f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <strong style={{ fontSize: 14 }}>Salmon Allocation</strong>
+        <Space>
+          <Button
+            size="small"
+            icon={<BarChartOutlined />}
             onClick={() => setShowStock(!showStock)}
-            className="text-xs text-gray-500 hover:underline"
           >
             {showStock ? 'Hide Stock' : 'Show Stock'}
-          </button>
-          <button
+          </Button>
+          <Button
+            size="small"
+            icon={<ReloadOutlined />}
             onClick={resetAllocations}
-            className="px-3 py-1 text-xs border border-gray-300 hover:bg-gray-50"
           >
             Reset
-          </button>
+          </Button>
           {!isAllocated && (
-            <button
+            <Button
+              type="primary"
+              size="small"
+              icon={<ThunderboltOutlined />}
               onClick={runAutoAllocate}
-              className="px-3 py-1 text-xs bg-gray-800 text-white hover:bg-gray-700"
             >
               Auto Allocate
-            </button>
+            </Button>
           )}
-        </div>
-      </div>
+        </Space>
+      </Header>
 
-      <div className="px-4 py-2 space-y-2">
-        <SummaryPanel summary={summary} />
-        {showStock && <StockOverview suppliers={suppliers} warehouses={warehouses} />}
-        <SearchFilter
-          filters={filters}
-          onFilterChange={setFilters}
-          suppliers={suppliers}
-          warehouses={warehouses}
-          totalCount={orders.length}
-          filteredCount={filteredOrders.length}
-        />
-        <AllocationTable orders={filteredOrders} onSelectOrder={setSelectedOrderId} />
-      </div>
+      <Content style={{ padding: 16 }}>
+        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <SummaryPanel summary={summary} />
+          {showStock && <StockOverview suppliers={suppliers} warehouses={warehouses} />}
+          <SearchFilter
+            filters={filters}
+            onFilterChange={setFilters}
+            suppliers={suppliers}
+            warehouses={warehouses}
+            totalCount={orders.length}
+            filteredCount={filteredOrders.length}
+          />
+          <AllocationTable orders={filteredOrders} onSelectOrder={setSelectedOrderId} />
+        </Space>
+      </Content>
 
       {selectedOrder && selectedConstraints && (
         <ManualAllocationModal
@@ -112,7 +133,7 @@ const App = () => {
           onClose={() => setSelectedOrderId(null)}
         />
       )}
-    </div>
+    </Layout>
   );
 };
 

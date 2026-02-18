@@ -1,4 +1,7 @@
+import { Input, Select, Space, Typography } from 'antd';
 import type { Filters, Supplier, Warehouse } from '../types';
+
+const { Text } = Typography;
 
 const SearchFilter = ({ filters, onFilterChange, suppliers, warehouses, totalCount, filteredCount }: {
   filters: Filters;
@@ -11,42 +14,66 @@ const SearchFilter = ({ filters, onFilterChange, suppliers, warehouses, totalCou
   const updateFilter = (key: keyof Filters, value: string) => onFilterChange({ ...filters, [key]: value });
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="text"
+    <Space direction="vertical" size="small" style={{ width: '100%' }}>
+      <Space wrap>
+        <Input.Search
           placeholder="Search order ID, customer ID, item, remark..."
           value={filters.search}
           onChange={(event) => updateFilter('search', event.target.value)}
-          className="flex-1 min-w-[200px] border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500"
+          allowClear
+          style={{ width: 320 }}
         />
-        <select value={filters.type} onChange={(event) => updateFilter('type', event.target.value)} className="border border-gray-300 px-2 py-1.5 text-sm">
-          <option value="">All Types</option>
-          <option value="EMERGENCY">Emergency</option>
-          <option value="OVER_DUE">Over Due</option>
-          <option value="DAILY">Daily</option>
-        </select>
-        <select value={filters.status} onChange={(event) => updateFilter('status', event.target.value)} className="border border-gray-300 px-2 py-1.5 text-sm">
-          <option value="">All Statuses</option>
-          <option value="full">Full</option>
-          <option value="partial">Partial</option>
-          <option value="unallocated">Unallocated</option>
-        </select>
-        <select value={filters.supplier} onChange={(event) => updateFilter('supplier', event.target.value)} className="border border-gray-300 px-2 py-1.5 text-sm">
-          <option value="">All Suppliers</option>
-          <option value="SP-000">SP-000 (Any)</option>
-          {suppliers.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.id}</option>)}
-        </select>
-        <select value={filters.warehouse} onChange={(event) => updateFilter('warehouse', event.target.value)} className="border border-gray-300 px-2 py-1.5 text-sm">
-          <option value="">All Warehouses</option>
-          <option value="WH-000">WH-000 (Any)</option>
-          {warehouses.map((warehouse) => <option key={warehouse.id} value={warehouse.id}>{warehouse.id}</option>)}
-        </select>
-      </div>
-      <p className="text-xs text-gray-500">
+        <Select
+          value={filters.type || undefined}
+          onChange={(value) => updateFilter('type', value ?? '')}
+          placeholder="All Types"
+          allowClear
+          style={{ width: 140 }}
+          options={[
+            { value: 'EMERGENCY', label: 'Emergency' },
+            { value: 'OVER_DUE', label: 'Over Due' },
+            { value: 'DAILY', label: 'Daily' },
+          ]}
+        />
+        <Select
+          value={filters.status || undefined}
+          onChange={(value) => updateFilter('status', value ?? '')}
+          placeholder="All Statuses"
+          allowClear
+          style={{ width: 140 }}
+          options={[
+            { value: 'full', label: 'Full' },
+            { value: 'partial', label: 'Partial' },
+            { value: 'unallocated', label: 'Unallocated' },
+          ]}
+        />
+        <Select
+          value={filters.supplier || undefined}
+          onChange={(value) => updateFilter('supplier', value ?? '')}
+          placeholder="All Suppliers"
+          allowClear
+          style={{ width: 160 }}
+          options={[
+            { value: 'SP-000', label: 'SP-000 (Any)' },
+            ...suppliers.map((supplier) => ({ value: supplier.id, label: supplier.id })),
+          ]}
+        />
+        <Select
+          value={filters.warehouse || undefined}
+          onChange={(value) => updateFilter('warehouse', value ?? '')}
+          placeholder="All Warehouses"
+          allowClear
+          style={{ width: 160 }}
+          options={[
+            { value: 'WH-000', label: 'WH-000 (Any)' },
+            ...warehouses.map((warehouse) => ({ value: warehouse.id, label: warehouse.id })),
+          ]}
+        />
+      </Space>
+      <Text type="secondary" style={{ fontSize: 12 }}>
         Showing {filteredCount.toLocaleString()} of {totalCount.toLocaleString()} sub-orders
-      </p>
-    </div>
+      </Text>
+    </Space>
   );
 };
 
