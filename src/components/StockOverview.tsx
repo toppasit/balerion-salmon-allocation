@@ -17,13 +17,13 @@ const StockOverview = ({ suppliers, warehouses }: { suppliers: Supplier[]; wareh
     <div>
       <h3 className="text-xs font-semibold text-gray-700 mb-2">Supplier Stock</h3>
       <div className="space-y-1">
-        {suppliers.map(s => <StockBar key={s.id} id={s.id} label={s.name} used={s.totalStock - s.remainingStock} total={s.totalStock} />)}
+        {suppliers.map((supplier) => <StockBar key={supplier.id} id={supplier.id} label={supplier.name} used={supplier.totalStock - supplier.remainingStock} total={supplier.totalStock} />)}
       </div>
     </div>
     <div>
       <h3 className="text-xs font-semibold text-gray-700 mb-2">Warehouse Stock</h3>
       <div className="space-y-1">
-        {warehouses.map(w => <StockBar key={w.id} id={w.id} label={w.name} used={w.totalStock - w.remainingStock} total={w.totalStock} />)}
+        {warehouses.map((warehouse) => <StockBar key={warehouse.id} id={warehouse.id} label={warehouse.name} used={warehouse.totalStock - warehouse.remainingStock} total={warehouse.totalStock} />)}
       </div>
     </div>
   </div>

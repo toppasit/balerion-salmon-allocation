@@ -13,12 +13,21 @@ const ManualAllocationModal = ({ order, constraints, onApply, onClose }: {
 
   const parsed = parseFloat(inputValue) || 0;
   const previewCost = parsed * constraints.unitPrice;
-  const status = getAllocationStatus({ allocatedQty: parsed, requestedQty: order.requestedQty });
+  const status = getAllocationStatus({
+    allocatedQty: parsed,
+    requestedQty: order.requestedQty,
+  });
 
   const handleApply = () => {
     const qty = parseFloat(inputValue);
-    if (isNaN(qty) || qty < 0) { setError('Enter a valid non-negative number'); return; }
-    if (qty > constraints.maxAllocation) { setError(`Max allocation is ${formatNumber(constraints.maxAllocation)}`); return; }
+    if (isNaN(qty) || qty < 0) {
+      setError('Enter a valid non-negative number');
+      return;
+    }
+    if (qty > constraints.maxAllocation) {
+      setError(`Max allocation is ${formatNumber(constraints.maxAllocation)}`);
+      return;
+    }
     if (onApply(order.id, qty)) onClose();
     else setError('Allocation failed');
   };
@@ -29,15 +38,26 @@ const ManualAllocationModal = ({ order, constraints, onApply, onClose }: {
   };
 
   const row = (label: string, value: React.ReactNode) => (
-    <tr><td className="py-1.5 text-gray-500 w-40">{label}</td><td className="py-1.5">{value}</td></tr>
+    <tr>
+      <td className="py-1.5 text-gray-500 w-40">{label}</td>
+      <td className="py-1.5">{value}</td>
+    </tr>
   );
 
   return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white border border-gray-300 w-full max-w-lg mx-4" onClick={e => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white border border-gray-300 w-full max-w-lg mx-4"
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="px-4 py-3 border-b border-gray-200">
           <h3 className="text-sm font-semibold">Manual Allocation</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Sub Order: {order.id} | Order: {order.orderId}</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Sub Order: {order.id} | Order: {order.orderId}
+          </p>
         </div>
 
         <div className="p-4 space-y-4">
@@ -63,9 +83,11 @@ const ManualAllocationModal = ({ order, constraints, onApply, onClose }: {
             <input
               type="number"
               value={inputValue}
-              onChange={e => { setInputValue(e.target.value); setError(''); }}
+              onChange={(event) => { setInputValue(event.target.value); setError(''); }}
               onKeyDown={handleKeyDown}
-              min={0} max={constraints.maxAllocation} step="0.01"
+              min={0}
+              max={constraints.maxAllocation}
+              step="0.01"
               className="w-full border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:border-blue-500"
               autoFocus
             />
@@ -74,17 +96,35 @@ const ManualAllocationModal = ({ order, constraints, onApply, onClose }: {
 
           <div className="flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-3">
             <span>Preview: {formatNumber(parsed)} qty = {formatCurrency(previewCost)}</span>
-            <span className={status === 'full' ? 'text-green-700' : status === 'partial' ? 'text-amber-700' : 'text-gray-500'}>
-              {status === 'full' ? 'Fully allocated' : status === 'partial' ? 'Partially allocated' : 'Unallocated'}
+            <span className={
+              status === 'full' ? 'text-green-700'
+                : status === 'partial' ? 'text-amber-700'
+                  : 'text-gray-500'
+            }>
+              {status === 'full' ? 'Fully allocated'
+                : status === 'partial' ? 'Partially allocated'
+                  : 'Unallocated'}
             </span>
           </div>
 
-          {order.remark && <p className="text-xs text-gray-400">Remark: {order.remark}</p>}
+          {order.remark && (
+            <p className="text-xs text-gray-400">Remark: {order.remark}</p>
+          )}
         </div>
 
         <div className="px-4 py-3 border-t border-gray-200 flex justify-end gap-2">
-          <button onClick={onClose} className="px-3 py-1.5 text-xs border border-gray-300 hover:bg-gray-50">Cancel</button>
-          <button onClick={handleApply} className="px-3 py-1.5 text-xs bg-gray-800 text-white hover:bg-gray-700">Apply</button>
+          <button
+            onClick={onClose}
+            className="px-3 py-1.5 text-xs border border-gray-300 hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleApply}
+            className="px-3 py-1.5 text-xs bg-gray-800 text-white hover:bg-gray-700"
+          >
+            Apply
+          </button>
         </div>
       </div>
     </div>

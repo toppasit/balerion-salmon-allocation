@@ -1,11 +1,54 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import type { AllocationConstraints, Summary } from '../types';
+import type { AllocationConstraints, Supplier, Warehouse, Customer, Summary } from '../types';
 import { generateMockData } from '../data/mockData';
 import { autoAllocate, calculateManualAllocationConstraints } from '../utils/allocation';
 import { bankersRound } from '../utils/helpers';
 
+const adjustSupplierStock = (
+  setSuppliers: React.Dispatch<React.SetStateAction<Supplier[]>>,
+  supplierId: string,
+  qtyDiff: number,
+) => {
+  setSuppliers((previousSuppliers) =>
+    previousSuppliers.map((supplier) =>
+      supplier.id === supplierId
+        ? { ...supplier, remainingStock: bankersRound(supplier.remainingStock - qtyDiff, 2) }
+        : supplier,
+    ),
+  );
+};
+
+const adjustWarehouseStock = (
+  setWarehouses: React.Dispatch<React.SetStateAction<Warehouse[]>>,
+  warehouseId: string,
+  qtyDiff: number,
+) => {
+  setWarehouses((previousWarehouses) =>
+    previousWarehouses.map((warehouse) =>
+      warehouse.id === warehouseId
+        ? { ...warehouse, remainingStock: bankersRound(warehouse.remainingStock - qtyDiff, 2) }
+        : warehouse,
+    ),
+  );
+};
+
+const adjustCustomerCredit = (
+  setCustomers: React.Dispatch<React.SetStateAction<Customer[]>>,
+  customerId: string,
+  costDiff: number,
+) => {
+  setCustomers((previousCustomers) =>
+    previousCustomers.map((customer) =>
+      customer.id === customerId
+        ? { ...customer, usedCredit: bankersRound(customer.usedCredit + costDiff, 2) }
+        : customer,
+    ),
+  );
+};
+
 export const useAllocation = () => {
   const initialData = useRef(generateMockData());
+
   const [suppliers, setSuppliers] = useState(initialData.current.suppliers);
   const [warehouses, setWarehouses] = useState(initialData.current.warehouses);
   const [customers, setCustomers] = useState(initialData.current.customers);
@@ -15,8 +58,10 @@ export const useAllocation = () => {
   const [isAllocated, setIsAllocated] = useState(false);
 
   useEffect(() => {
-    const d = initialData.current;
-    const result = autoAllocate(d.orders, d.suppliers, d.warehouses, d.customers, d.priceEntries);
+    const data = initialData.current;
+    const result = autoAllocate(
+      data.orders, data.suppliers, data.warehouses, data.customers, data.priceEntries,
+    );
     setOrders(result.orders);
     setSuppliers(result.suppliers);
     setWarehouses(result.warehouses);
@@ -25,18 +70,20 @@ export const useAllocation = () => {
   }, []);
 
   const resetAllocations = useCallback(() => {
-    const d = generateMockData();
-    initialData.current = d;
-    setOrders(d.orders);
-    setSuppliers(d.suppliers);
-    setWarehouses(d.warehouses);
-    setCustomers(d.customers);
+    const data = generateMockData();
+    initialData.current = data;
+    setOrders(data.orders);
+    setSuppliers(data.suppliers);
+    setWarehouses(data.warehouses);
+    setCustomers(data.customers);
     setIsAllocated(false);
   }, []);
 
   const runAutoAllocate = useCallback(() => {
-    const d = initialData.current;
-    const result = autoAllocate(d.orders, d.suppliers, d.warehouses, d.customers, d.priceEntries);
+    const data = initialData.current;
+    const result = autoAllocate(
+      data.orders, data.suppliers, data.warehouses, data.customers, data.priceEntries,
+    );
     setOrders(result.orders);
     setSuppliers(result.suppliers);
     setWarehouses(result.warehouses);
@@ -46,36 +93,48 @@ export const useAllocation = () => {
 
   const getManualConstraints = useCallback(
     (orderId: string): AllocationConstraints | null => {
-      const order = orders.find(o => o.id === orderId);
+      const order = orders.find((order) => order.id === orderId);
       if (!order) return null;
-      return calculateManualAllocationConstraints(order, suppliers, warehouses, customers, priceEntries);
+      return calculateManualAllocationConstraints(
+        order, suppliers, warehouses, customers, priceEntries,
+      );
     },
     [orders, suppliers, warehouses, customers, priceEntries],
   );
 
   const applyManualAllocation = useCallback(
     (orderId: string, newQty: number) => {
-      const idx = orders.findIndex(o => o.id === orderId);
-      if (idx === -1) return false;
+      const orderIndex = orders.findIndex((order) => order.id === orderId);
+      if (orderIndex === -1) return false;
 
-      const order = orders[idx];
-      const c = calculateManualAllocationConstraints(order, suppliers, warehouses, customers, priceEntries);
-      if (!c.supplier || !c.warehouse || !c.customer) return false;
+      const order = orders[orderIndex];
+      const constraints = calculateManualAllocationConstraints(
+        order, suppliers, warehouses, customers, priceEntries,
+      );
+
+      if (!constraints.supplier || !constraints.warehouse || !constraints.customer) return false;
 
       const qty = bankersRound(newQty, 2);
-      if (qty < 0 || qty > c.maxAllocation) return false;
+      if (qty < 0 || qty > constraints.maxAllocation) return false;
 
-      const cost = bankersRound(qty * c.unitPrice, 2);
+      const cost = bankersRound(qty * constraints.unitPrice, 2);
       const qtyDiff = qty - order.allocatedQty;
       const costDiff = cost - order.totalCost;
 
-      const updated = [...orders];
-      updated[idx] = { ...order, allocatedQty: qty, unitPrice: c.unitPrice, totalCost: cost, resolvedSupplierId: c.supplier.id, resolvedWarehouseId: c.warehouse.id };
-      setOrders(updated);
+      const updatedOrders = [...orders];
+      updatedOrders[orderIndex] = {
+        ...order,
+        allocatedQty: qty,
+        unitPrice: constraints.unitPrice,
+        totalCost: cost,
+        resolvedSupplierId: constraints.supplier.id,
+        resolvedWarehouseId: constraints.warehouse.id,
+      };
+      setOrders(updatedOrders);
 
-      setSuppliers(prev => prev.map(s => s.id === c.supplier!.id ? { ...s, remainingStock: bankersRound(s.remainingStock - qtyDiff, 2) } : s));
-      setWarehouses(prev => prev.map(w => w.id === c.warehouse!.id ? { ...w, remainingStock: bankersRound(w.remainingStock - qtyDiff, 2) } : w));
-      setCustomers(prev => prev.map(cu => cu.id === order.customerId ? { ...cu, usedCredit: bankersRound(cu.usedCredit + costDiff, 2) } : cu));
+      adjustSupplierStock(setSuppliers, constraints.supplier.id, qtyDiff);
+      adjustWarehouseStock(setWarehouses, constraints.warehouse.id, qtyDiff);
+      adjustCustomerCredit(setCustomers, order.customerId, costDiff);
 
       return true;
     },
@@ -83,31 +142,48 @@ export const useAllocation = () => {
   );
 
   const summary: Summary = useMemo(() => {
-    const allocated = orders.filter(o => o.allocatedQty > 0);
-    const full = orders.filter(o => o.allocatedQty >= o.requestedQty);
-    const totalReq = orders.reduce((s, o) => s + o.requestedQty, 0);
-    const totalAlloc = orders.reduce((s, o) => s + o.allocatedQty, 0);
+    const allocatedOrders = orders.filter((order) => order.allocatedQty > 0);
+    const fullyAllocatedOrders = orders.filter((order) => order.allocatedQty >= order.requestedQty);
+    const totalRequested = orders.reduce((sum, order) => sum + order.requestedQty, 0);
+    const totalAllocated = orders.reduce((sum, order) => sum + order.allocatedQty, 0);
+    const totalRevenue = orders.reduce((sum, order) => sum + order.totalCost, 0);
 
     return {
-      totalOrders: new Set(orders.map(o => o.orderId)).size,
+      totalOrders: new Set(orders.map((order) => order.orderId)).size,
       totalSubOrders: orders.length,
-      allocatedSubOrders: allocated.length,
-      fullyAllocated: full.length,
-      partiallyAllocated: allocated.length - full.length,
-      unallocated: orders.length - allocated.length,
-      totalRequested: bankersRound(totalReq, 2),
-      totalAllocated: bankersRound(totalAlloc, 2),
-      totalRevenue: bankersRound(orders.reduce((s, o) => s + o.totalCost, 0), 2),
-      totalSupplierStock: suppliers.reduce((s, sp) => s + sp.totalStock, 0),
-      remainingSupplierStock: bankersRound(suppliers.reduce((s, sp) => s + sp.remainingStock, 0), 2),
-      totalWarehouseStock: warehouses.reduce((s, w) => s + w.totalStock, 0),
-      remainingWarehouseStock: bankersRound(warehouses.reduce((s, w) => s + w.remainingStock, 0), 2),
-      fillRate: totalReq > 0 ? bankersRound((totalAlloc / totalReq) * 100, 1) : 0,
+      allocatedSubOrders: allocatedOrders.length,
+      fullyAllocated: fullyAllocatedOrders.length,
+      partiallyAllocated: allocatedOrders.length - fullyAllocatedOrders.length,
+      unallocated: orders.length - allocatedOrders.length,
+      totalRequested: bankersRound(totalRequested, 2),
+      totalAllocated: bankersRound(totalAllocated, 2),
+      totalRevenue: bankersRound(totalRevenue, 2),
+      totalSupplierStock: suppliers.reduce((sum, supplier) => sum + supplier.totalStock, 0),
+      remainingSupplierStock: bankersRound(
+        suppliers.reduce((sum, supplier) => sum + supplier.remainingStock, 0), 2,
+      ),
+      totalWarehouseStock: warehouses.reduce((sum, warehouse) => sum + warehouse.totalStock, 0),
+      remainingWarehouseStock: bankersRound(
+        warehouses.reduce((sum, warehouse) => sum + warehouse.remainingStock, 0), 2,
+      ),
+      fillRate: totalRequested > 0
+        ? bankersRound((totalAllocated / totalRequested) * 100, 1)
+        : 0,
     };
   }, [orders, suppliers, warehouses]);
 
   return {
-    orders, suppliers, warehouses, customers, items, priceEntries,
-    summary, isAllocated, runAutoAllocate, resetAllocations, getManualConstraints, applyManualAllocation,
+    orders,
+    suppliers,
+    warehouses,
+    customers,
+    items,
+    priceEntries,
+    summary,
+    isAllocated,
+    runAutoAllocate,
+    resetAllocations,
+    getManualConstraints,
+    applyManualAllocation,
   };
 };

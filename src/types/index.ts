@@ -1,15 +1,38 @@
 export type OrderType = 'EMERGENCY' | 'OVER_DUE' | 'DAILY';
+
 export type AllocationStatus = 'full' | 'partial' | 'unallocated';
 
-export interface Item { id: string; name: string }
+export interface Item {
+  id: string;
+  name: string;
+}
 
-export interface Supplier { id: string; name: string; totalStock: number; remainingStock: number }
+export interface Supplier {
+  id: string;
+  name: string;
+  totalStock: number;
+  remainingStock: number;
+}
 
-export interface Warehouse { id: string; name: string; totalStock: number; remainingStock: number }
+export interface Warehouse {
+  id: string;
+  name: string;
+  totalStock: number;
+  remainingStock: number;
+}
 
-export interface Customer { id: string; name: string; creditLimit: number; usedCredit: number }
+export interface Customer {
+  id: string;
+  name: string;
+  creditLimit: number;
+  usedCredit: number;
+}
 
-export interface PriceEntry { itemId: string; supplierId: string; basePrice: number }
+export interface PriceEntry {
+  itemId: string;
+  supplierId: string;
+  basePrice: number;
+}
 
 export interface Order {
   id: string;
@@ -75,4 +98,10 @@ export interface Summary {
   fillRate: number;
 }
 
-export interface Filters { search: string; type: string; status: string; supplier: string; warehouse: string }
+export interface Filters {
+  search: string;
+  type: string;
+  status: string;
+  supplier: string;
+  warehouse: string;
+}

@@ -1,9 +1,9 @@
 import type { Item, Supplier, Warehouse, Customer, Order, OrderType, PriceEntry, MockData } from '../types';
 
-const mulberry32 = (a: number) => () => {
-  a |= 0;
-  a = (a + 0x6d2b79f5) | 0;
-  let t = Math.imul(a ^ (a >>> 15), 1 | a);
+const mulberry32 = (seed: number) => () => {
+  seed |= 0;
+  seed = (seed + 0x6d2b79f5) | 0;
+  let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
   t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
@@ -68,13 +68,64 @@ const WAREHOUSE_DATA = [
   { id: 'WH-006', name: 'Kristiansand Depot', totalStock: 8500 },
 ];
 
-const REMARKS = ['', '', '', '', '', '', '', '', '', 'Special for VIP', 'Urgent delivery', 'Bulk discount'];
+const REMARKS = [
+  '', '', '', '', '', '', '', '', '',
+  'Special for VIP', 'Urgent delivery', 'Bulk discount',
+];
+
+const ORDER_TYPES: OrderType[] = ['EMERGENCY', 'OVER_DUE', 'DAILY'];
+
+const pickOrderType = (rng: Rng): OrderType => {
+  const typePick = rng.next();
+  if (typePick < 0.1) return ORDER_TYPES[0];
+  if (typePick < 0.3) return ORDER_TYPES[1];
+  return ORDER_TYPES[2];
+};
+
+const createSubOrder = (
+  parentId: string,
+  subIndex: number,
+  customer: Customer,
+  type: OrderType,
+  orderDate: string,
+  remark: string,
+  rng: Rng,
+  items: Item[],
+  suppliers: Supplier[],
+  warehouses: Warehouse[],
+): Order => {
+  const supplierId = rng.next() < 0.1 ? 'SP-000' : rng.pick(suppliers).id;
+  const warehouseId = rng.next() < 0.1 ? 'WH-000' : rng.pick(warehouses).id;
+
+  return {
+    id: `${parentId}-${String(subIndex + 1).padStart(3, '0')}`,
+    orderId: parentId,
+    itemId: rng.pick(items).id,
+    warehouseId,
+    supplierId,
+    customerId: customer.id,
+    customerName: customer.name,
+    type,
+    requestedQty: Math.round(rng.nextFloat(5, 50) * 100) / 100,
+    allocatedQty: 0,
+    unitPrice: 0,
+    totalCost: 0,
+    orderDate,
+    remark,
+    resolvedSupplierId: null,
+    resolvedWarehouseId: null,
+  };
+};
 
 const generatePriceEntries = (rng: Rng, items: Item[], suppliers: Supplier[]): PriceEntry[] => {
   const entries: PriceEntry[] = [];
   for (const item of items) {
     for (const supplier of suppliers) {
-      entries.push({ itemId: item.id, supplierId: supplier.id, basePrice: Math.round(rng.nextFloat(50, 200) * 100) / 100 });
+      entries.push({
+        itemId: item.id,
+        supplierId: supplier.id,
+        basePrice: Math.round(rng.nextFloat(50, 200) * 100) / 100,
+      });
     }
   }
   return entries;
@@ -86,59 +137,66 @@ const generateCustomers = (rng: Rng, count: number): Customer[] => {
 
   for (let i = 0; i < count; i++) {
     let name: string;
-    do { name = `${rng.pick(FIRST_NAMES)} ${rng.pick(LAST_NAMES)}`; } while (usedNames.has(name));
+    do {
+      name = `${rng.pick(FIRST_NAMES)} ${rng.pick(LAST_NAMES)}`;
+    } while (usedNames.has(name));
     usedNames.add(name);
 
-    const r = rng.next();
-    const creditLimit = r < 0.2 ? rng.nextInt(2000, 5000) : r < 0.6 ? rng.nextInt(5000, 30000) : rng.nextInt(30000, 100000);
+    const creditTierRoll = rng.next();
+    let creditLimit: number;
+    if (creditTierRoll < 0.2) creditLimit = rng.nextInt(2000, 5000);
+    else if (creditTierRoll < 0.6) creditLimit = rng.nextInt(5000, 30000);
+    else creditLimit = rng.nextInt(30000, 100000);
 
-    customers.push({ id: `CT-${String(i + 1).padStart(4, '0')}`, name, creditLimit, usedCredit: 0 });
+    customers.push({
+      id: `CT-${String(i + 1).padStart(4, '0')}`,
+      name,
+      creditLimit,
+      usedCredit: 0,
+    });
   }
+
   return customers;
 };
 
-const generateOrders = (rng: Rng, customers: Customer[], items: Item[], suppliers: Supplier[], warehouses: Warehouse[], parentCount: number): Order[] => {
+const generateOrders = (
+  rng: Rng,
+  customers: Customer[],
+  items: Item[],
+  suppliers: Supplier[],
+  warehouses: Warehouse[],
+  parentCount: number,
+): Order[] => {
   const orders: Order[] = [];
-  const orderTypes: OrderType[] = ['EMERGENCY', 'OVER_DUE', 'DAILY'];
   const startDate = new Date('2025-01-01').getTime();
   const dateRange = new Date('2025-12-31').getTime() - startDate;
 
-  for (let p = 0; p < parentCount; p++) {
-    const parentId = `ORDER-${String(p + 1).padStart(4, '0')}`;
+  for (let parentIndex = 0; parentIndex < parentCount; parentIndex++) {
+    const parentId = `ORDER-${String(parentIndex + 1).padStart(4, '0')}`;
     const customer = rng.pick(customers);
-    const r = rng.next();
-    const type = r < 0.1 ? orderTypes[0] : r < 0.3 ? orderTypes[1] : orderTypes[2];
-    const orderDate = new Date(startDate + rng.next() * dateRange).toISOString().split('T')[0];
-    const remark = rng.pick(REMARKS);
+    const type = pickOrderType(rng);
 
-    for (let s = 0; s < rng.nextInt(1, 5); s++) {
-      orders.push({
-        id: `${parentId}-${String(s + 1).padStart(3, '0')}`,
-        orderId: parentId,
-        itemId: rng.pick(items).id,
-        warehouseId: rng.next() < 0.1 ? 'WH-000' : rng.pick(warehouses).id,
-        supplierId: rng.next() < 0.1 ? 'SP-000' : rng.pick(suppliers).id,
-        customerId: customer.id,
-        customerName: customer.name,
-        type,
-        requestedQty: Math.round(rng.nextFloat(5, 50) * 100) / 100,
-        allocatedQty: 0,
-        unitPrice: 0,
-        totalCost: 0,
-        orderDate,
-        remark,
-        resolvedSupplierId: null,
-        resolvedWarehouseId: null,
-      });
+    const orderDate = new Date(startDate + rng.next() * dateRange)
+      .toISOString()
+      .split('T')[0];
+
+    const remark = rng.pick(REMARKS);
+    const subOrderCount = rng.nextInt(1, 5);
+
+    for (let subIndex = 0; subIndex < subOrderCount; subIndex++) {
+      orders.push(
+        createSubOrder(parentId, subIndex, customer, type, orderDate, remark, rng, items, suppliers, warehouses),
+      );
     }
   }
+
   return orders;
 };
 
 export const generateMockData = (): MockData => {
   const rng = createRng(12345);
-  const suppliers: Supplier[] = SUPPLIER_DATA.map(s => ({ ...s, remainingStock: s.totalStock }));
-  const warehouses: Warehouse[] = WAREHOUSE_DATA.map(w => ({ ...w, remainingStock: w.totalStock }));
+  const suppliers: Supplier[] = SUPPLIER_DATA.map((supplier) => ({ ...supplier, remainingStock: supplier.totalStock }));
+  const warehouses: Warehouse[] = WAREHOUSE_DATA.map((warehouse) => ({ ...warehouse, remainingStock: warehouse.totalStock }));
   const priceEntries = generatePriceEntries(rng, ITEMS, suppliers);
   const customers = generateCustomers(rng, 200);
   const orders = generateOrders(rng, customers, ITEMS, suppliers, warehouses, 2000);

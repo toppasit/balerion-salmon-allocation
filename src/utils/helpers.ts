@@ -2,24 +2,36 @@ import type { Order, AllocationStatus, OrderType, PriceEntry } from '../types';
 
 export const bankersRound = (num: number, decimals = 2) => {
   if (!isFinite(num)) return num;
-  const m = Math.pow(10, decimals);
-  const n = +(num * m).toPrecision(15);
-  const i = Math.floor(n);
-  const f = n - i;
-  if (f > 0.5 - 1e-8 && f < 0.5 + 1e-8) {
-    return (i % 2 === 0 ? i : i + 1) / m;
+
+  const multiplier = Math.pow(10, decimals);
+  const shifted = +(num * multiplier).toPrecision(15);
+  const integer = Math.floor(shifted);
+  const fraction = shifted - integer;
+
+  const isExactMidpoint = fraction > 0.5 - 1e-8 && fraction < 0.5 + 1e-8;
+  if (isExactMidpoint) {
+    const roundToEven = integer % 2 === 0 ? integer : integer + 1;
+    return roundToEven / multiplier;
   }
-  return Math.round(n) / m;
+
+  return Math.round(shifted) / multiplier;
 };
 
 export const formatCurrency = (amount: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 
 export const formatNumber = (num: number, decimals = 2) =>
-  new Intl.NumberFormat('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(num);
+  new Intl.NumberFormat('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(num);
 
 export const formatDate = (dateStr: string) =>
-  new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 
 export const ORDER_TYPE_PRIORITY: Record<OrderType, number> = {
   EMERGENCY: 0,
@@ -33,13 +45,22 @@ export const PRICE_TIER_MULTIPLIER: Record<OrderType, number> = {
   DAILY: 0.90,
 };
 
-export const getUnitPrice = (itemId: string, supplierId: string, orderType: OrderType, priceEntries: PriceEntry[]) => {
-  const entry = priceEntries.find(e => e.itemId === itemId && e.supplierId === supplierId);
+export const getUnitPrice = (
+  itemId: string,
+  supplierId: string,
+  orderType: OrderType,
+  priceEntries: PriceEntry[],
+) => {
+  const entry = priceEntries.find(
+    (priceEntry) => priceEntry.itemId === itemId && priceEntry.supplierId === supplierId,
+  );
   if (!entry) return 0;
   return bankersRound(entry.basePrice * PRICE_TIER_MULTIPLIER[orderType], 2);
 };
 
-export const getAllocationStatus = (order: Pick<Order, 'allocatedQty' | 'requestedQty'>): AllocationStatus => {
+export const getAllocationStatus = (
+  order: Pick<Order, 'allocatedQty' | 'requestedQty'>,
+): AllocationStatus => {
   if (order.allocatedQty === 0) return 'unallocated';
   if (order.allocatedQty >= order.requestedQty) return 'full';
   return 'partial';
